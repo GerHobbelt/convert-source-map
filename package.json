@@ -29,6 +29,9 @@
     "email": "thlorenz@gmx.de",
     "url": "http://thlorenz.com"
   },
+  "publishConfig": {
+    "registry": "https://npm.pandell.com"
+  },
   "license": "MIT",
   "engine": {
     "node": ">=0.6"
