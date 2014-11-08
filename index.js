@@ -3,6 +3,7 @@ var fs = require('fs');
 var path = require('path');
 
 var commentRx = /(?:\/\/|\/\*)[@#][ \t]+sourceMappingURL=data:(?:application|text)\/json;base64,((?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?)(?:[ \t]*\*\/)?$/mg;
+var commentRxPrefix = /(?:\/\/|\/\*)[@#][ \t]+sourceMappingURL=data:(?:application|text)\/json;base64,/g;
 var mapFileCommentRx =
   // //# sourceMappingURL=foo.js.map                       /*# sourceMappingURL=foo.js.map */
   /(?:\/\/[@#][ \t]+sourceMappingURL=(.+?)[ \t]*$)|(?:\/\*[@#][ \t]+sourceMappingURL=([^\*]+?)[ \t]*(?:\*\/){1}[ \t]*$)/mg
@@ -106,9 +107,20 @@ exports.fromMapFileComment = function (comment, dir) {
 
 // Finds last sourcemap comment in file or returns null if none was found
 exports.fromSource = function (content) {
-  var m = content.match(commentRx);
-  commentRx.lastIndex = 0;
-  return m ? exports.fromComment(m.pop()) : null;
+  var m, lastMatch;
+  while ((m = commentRxPrefix.exec(content)) !== null) {
+    lastMatch = m;
+  }
+  commentRxPrefix.lastIndex = 0;
+
+  if (!lastMatch) {
+    return null;
+  }
+
+  var idx = lastMatch.index;
+  var endIdx = content.indexOf('\n', idx);
+
+  return exports.fromComment(endIdx >= 0 ? content.substr(idx, endIdx-idx) : content.substr(idx));
 };
 
 // Finds last sourcemap comment in file or returns null if none was found
@@ -119,8 +131,22 @@ exports.fromMapFileSource = function (content, dir) {
 };
 
 exports.removeComments = function (src) {
-  commentRx.lastIndex = 0;
-  return src.replace(commentRx, '');
+  var m, indexes = [];
+  while ((m = commentRxPrefix.exec(src)) !== null) {
+    indexes.push(m.index);
+  }
+  commentRxPrefix.lastIndex = 0;
+
+  for (var i = indexes.length - 1; i >= 0; i -= 1) {
+    var idx = indexes[i];
+    var endIdx = src.indexOf('\n', idx);
+    var pre = src.substr(0, idx);
+    var post = endIdx >= 0 ? src.substr(endIdx) : '';
+
+    src = [pre, post].join('');
+  }
+
+  return src;
 };
 
 exports.removeMapFileComments = function (src) {
